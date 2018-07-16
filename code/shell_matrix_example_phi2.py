@@ -9,11 +9,10 @@ Print = PETSc.Sys.Print
 
 class ShellMatrix(object):
 
-    def __init__(self, m, n, KL11, KL21, KL22, L21, L22, M11, M12):
+    def __init__(self, m, n, KL11, KL22, L21, L22, M11, M12):
         self.m, self.n = m, n
         scalar = PETSc.ScalarType
         self.KL11 = KL11
-        self.KL21 = KL21
         self.KL22 = KL22
         self.L21 = L21
         self.L22 = L22
@@ -24,20 +23,18 @@ class ShellMatrix(object):
 
     def mult(self, A, x, y):
         """
-        First verion: isolating \Phi_1
+        Second version: isolating \Phi_2
         """
-        m, n = self.m, self.n
-        w1 = self.L21 * x
-        self.KL22.solve(w1, self.workvec)
-        w2 = self.M12 * self.workvec
-        self.workvec = self.M11 * x
-        w3 = self.workvec + w2
-        self.KL11.solve(w3, y)
+        w1 = self.M11 * x
+        w2 = self.L21 * x
+        self.KL22.solve(w2, self.workvec)
+        w4 = w1 + self.M12 * self.workvec
+        self.KL11.solve(w4, y)
+       
 
-
-def construct_operator(m, n, KL11, KL21, KL22, L21, L22, M11, M12):
+def construct_operator(m, n, KL11, KL22, L21, L22, M11, M12):
     # Create shell matrix
-    context = ShellMatrix(m,n,KL11, KL21, KL22, L21, L22, M11, M12)
+    context = ShellMatrix(m,n,KL11, KL22, L21, L22, M11, M12)
     A = PETSc.Mat().createPython([m,n], context)
     A.setUp()
     return A
@@ -82,7 +79,7 @@ def solve_eigensystem(A, problem_type=SLEPc.EPS.ProblemType.NHEP):
 
 def main():
     opts = PETSc.Options()
-    # load
+    # load from file
     viewer = PETSc.Viewer().createBinary('../matrices/ringhals1.petsc', 'r')
 
     L11 = PETSc.Mat().load(viewer)
@@ -104,17 +101,7 @@ def main():
     KL11.setOperators(L11)
     KL11.setFromOptions()
 
-    # To fix...
-    # # create linear solver
-    KL21 = PETSc.KSP()
-    # KL21.create(PETSc.COMM_WORLD)
-    # # use conjugate gradients
-    # KL21.setType('cg')
-    # # and incomplete Cholesky
-    # KL21.getPC().setType('none')
-    # # obtain sol & rhs vectors
-    # KL21.setOperators(L21)
-    # KL21.setFromOptions()
+    ((lr,gr),(lc,gc)) = L11.getSizes()
 
     # create linear solver
     KL22 = PETSc.KSP()
@@ -126,14 +113,13 @@ def main():
     # obtain sol & rhs vectors
     KL22.setOperators(L22)
     KL22.setFromOptions()
-    ((lr,gr),(lc,gc)) = L11.getSizes()
 
     Print("gr={:}\n".format(gr))
     Print("gc={:}\n".format(gc))
     Print("lr={:}\n".format(lr))
     Print("lc={:}\n".format(lc))
     Print("Symmetric Eigenproblem (matrix-free)")
-    A = construct_operator(gr,gc, KL11, KL21, KL22, L21, L22, M11, M12)
+    A = construct_operator(gr,gc, KL11, KL22, L21, L22, M11, M12)
     solve_eigensystem(A)
 
 if __name__ == '__main__':
