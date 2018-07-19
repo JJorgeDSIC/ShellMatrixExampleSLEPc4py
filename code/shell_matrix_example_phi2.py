@@ -118,7 +118,7 @@ def main():
     Print("gc={:}\n".format(gc))
     Print("lr={:}\n".format(lr))
     Print("lc={:}\n".format(lc))
-    Print("Symmetric Eigenproblem (matrix-free)")
+    Print("Standard Non-Symmetric Eigenvalue Problem (matrix-free)")
     A = construct_operator(gr,gc, KL11, KL22, L21, L22, M11, M12)
     solve_eigensystem(A)
 
